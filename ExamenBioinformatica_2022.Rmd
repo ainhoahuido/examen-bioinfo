@@ -1,0 +1,170 @@
+---
+title: "ExamenBioinformatica_2022"
+author: "Ainhoa Huidobro"
+date: "31/1/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# **Examen Bioinformática 2022**
+
+### En primer lugar se abrirá el dataset llamado weather del paquete nycflights13.
+```{r}
+library(nycflights13)
+weather <- nycflights13::weather
+```
+
+### **1. Comandos de Linux**
+#### **a. Palabras en el fichero
+El comando que utilizaría para contar las palabras sería cat genes.txt| wc -w
+
+#### **b. Cambiar todos los tabulados por guiones**
+cat genes.txt | sed s'/\t/-/g'
+
+#### **c. Cambiar solo la primera aparición**
+cat genes.txt | sed s'/\t/-/'
+
+#### **d. Buscar todos los genes excepto el gen llamado DSTYK**
+cat genes.txt | grep -v DSTYK
+
+
+## **Con el dataset llamado weather responda las siguientes preguntas**
+
+### **2. Preguntas básicas**
+#### **a. ¿Cuántas columnas y cuántos registros tiene este dataset?**
+```{r}
+ncol(weather)
+nrow(weather)
+```
+El dataset tiene 15 columnas y 26115 registros.
+
+#### **b. ¿Cuántos “origin” diferentes existen y para cada uno de ellos cuántos registros hay?**
+```{r}
+unique(weather$origin)
+sum(weather$origin=="JFK")
+sum(weather$origin=="EWR")
+sum(weather$origin=="LGA")
+```
+Hay 3 origin diferentes. Para JFK hay 8706 registros, para EWR 8703 y para LGA 8706.
+
+#### **c. En LGA, ¿cuáles fueron la mediana del wind_speed y media de pressure?**
+```{r}
+LGA <-weather[weather$origin=="LGA", ]
+median(LGA$wind_speed)
+table(is.na(LGA$pressure))
+# Como hay NAs en pressure debemos quitarlos para calcular la media.
+
+mean((LGA$pressure), na.rm = T)
+
+```
+
+#### **d. Después de eliminar los NA de la columna wind_gust, calcula para cada mes la media de wind_speed y wind_gust, y el número de casos**
+Primero eliminamos los NA de la columna wind_gust creando un nuevo dataset llamado weather2.
+```{r}
+table(is.na(weather$wind_gust))
+
+weather2 <- weather[!is.na(weather$wind_gust),]
+```
+Ahora calculamos las medias
+```{r}
+weather_completo <- weather2[complete.cases(weather2),]
+media_wind_speed <- aggregate(weather_completo$wind_speed, list(weather_completo$month), mean)
+names(media_wind_speed) <- c("mes", "media wind_speed")
+media_wind_speed
+
+media_wind_gust <- aggregate(weather_completo$wind_gust, list(weather_completo$month), mean)
+names(media_wind_gust) <- c("mes", "media wind_gust")
+media_wind_gust
+```
+El número de casos
+```{r}
+nrow(weather_completo)
+```
+
+
+### **3. Intenta hacer este plot:**
+#### **Crea el plot anterior**
+```{r}
+EWR <- weather2[weather2$origin == "EWR",]
+JFK <- weather2[weather2$origin == "JFK",]
+LGA <- weather2[weather2$origin == "LGA",]
+
+par(mfrow = c(1,3))
+boxplot(EWR$temp ~ EWR$month, ylab = "ºC", xlab= "Months",  col="red", main = "EWR")
+boxplot(JFK$temp ~ JFK$month, ylab = "ºC", xlab= "Months",  col="green", main = "JFK")
+boxplot(LGA$temp ~ LGA$month, ylab = "ºC", xlab= "Months",  col="blue", main = "LGA")
+```
+
+
+#### **Crea una función**
+```{r}
+plot_meteo <- function(data,columna1, columna2, titulo, unidades)
+{
+  dat <- data.frame(data)
+  x <- dat[,columna1]
+  y <- dat [, columna2]
+  boxplot(x ~ y, ylab = unidades, xlab= "Months",  col="pink", main = titulo)
+  media <- c(mean(EWR$temp,na.rm=T),mean(LGA$temp,na.rm=T),mean(JFK$temp,na.rm=T))
+  
+  return(media)
+  print(media)
+  
+  
+}
+
+plot_meteo(weather, "temp", "month", "Punto de rocio", "ºC")
+plot_meteo(weather, "humid", "month", "Humedad", "Relative humidity")
+
+```
+
+
+### **4. El día de tu cumpleaños:**
+#### **a. Qué correlación tuvieron la temperatura y humedad en cada uno de los origin? Plotealo mediante puntos con ggplot.**
+```{r}
+library(ggplot2)
+cor.test(EWR$temp, EWR$humid)
+ggplot(data = EWR) +
+  geom_point(mapping = aes(x = temp, y = humid))
+
+cor.test(JFK$temp, JFK$humid)
+ggplot(data = JFK) +
+  geom_point(mapping = aes(x = temp, y = humid))
+
+cor.test(LGA$temp, LGA$humid)
+ggplot(data = LGA) +
+  geom_point(mapping = aes(x = temp, y = humid))
+```
+
+Como se puede ver en los tres casos no existe correlación entre la temperatura y la humedad en cada origen, porque el coeficiente de correlación es cercano a cero por lo que la correlación es muy baja y además también se puede apreciar en el plot.
+
+#### **b. Si comparas la temperatura en los origins JFK y LGA ¿son estadísticamente diferentes? ¿Qué p-valor consigues? Plotea los boxplots.**
+```{r}
+t.test(weather$temp ~ weather$origin == "LGA")
+t.test(weather$temp ~ weather$origin == "JFK")
+```
+La relación de la temperatura con el origen (LGA y JFK) es significativa en ambos casos, ya que la p es inferior a 0.05. En un caso es 0.0013 y en el otro 2.366e-07.
+
+A continuación se representan los boxplots
+
+```{r}
+boxplot(weather$temp ~weather$origin, xlab = "Origen", 
+        ylab = "Temperatura", 
+        main = "Temperatura vs Origen")
+```
+
+
+### **5. Observa la siguiente imagen**
+#### **a. ¿Cuál es el punto con FC (Fold change) más grande en valores absolutos?**
+El punto FC más grande es el que practicamente tiene un valor de -10 a una altura de 5 con respecto al p valor.
+
+#### **b. ¿Qué gen sobreexpresado es el más significativo?
+Los genes sobreexpresados son los que están a la derecha y cuanto más arriba más significativo. Por lo que el gen sobreexpresado más significativo es Rbp1.
+
+
+### **6. Sube el examen a github y escribe a continuación tu url aquí.**
+
+
+### **7. Acaba el documento con el comando sessionInfo()**
